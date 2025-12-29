@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { Transaction, Debt, ViewState, TransactionType, FixedExpense, Budget, IncomeReminder } from './types';
@@ -9,6 +10,7 @@ import { SummaryCard } from './components/SummaryCard';
 import { BiblicalAdvisor } from './components/BiblicalAdvisor';
 import { Reminders } from './components/Reminders';
 import { IncomeReminderForm } from './components/IncomeReminderForm';
+import { ShoppingList } from './components/ShoppingList';
 import { Auth } from './components/Auth';
 import { supabase } from './services/supabase';
 
@@ -114,18 +116,6 @@ const App: React.FC = () => {
     if (error) return alert("Error al guardar transacción: " + error.message);
     
     setTransactions(prev => [data[0], ...prev]);
-
-    if (type === TransactionType.INCOME) {
-      const today = new Date().toISOString();
-      const updatedReminders = await Promise.all(incomeReminders.map(async (rem) => {
-        if (description.toLowerCase().includes(rem.description.toLowerCase()) || rem.dayOfMonth === new Date().getDate()) {
-          await supabase.from('income_reminders').update({ last_registered_date: today }).eq('id', rem.id);
-          return { ...rem, lastRegisteredDate: today };
-        }
-        return rem;
-      }));
-      setIncomeReminders(updatedReminders);
-    }
   };
 
   const deleteTransaction = async (id: string) => {
@@ -133,137 +123,47 @@ const App: React.FC = () => {
     if (!error) setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
-  const addFixedExpense = async (description: string, amount: number, category: string, dayOfMonth: number) => {
-    const { data, error } = await supabase.from('fixed_expenses').insert([{
-      description, 
-      amount, 
-      category, 
-      day_of_month: dayOfMonth, 
+  const saveBudget = async (budget: Budget) => {
+    const { data, error } = await supabase.from('budgets').upsert([{
+      id: budget.id,
+      year: budget.year,
+      month: budget.month,
+      estimated_income: budget.estimatedIncome,
+      allocations: budget.allocations,
       user_id: session.user.id
     }]).select();
-    
-    if (!error && data) {
-      setFixedExpenses(prev => [...prev, {
-        id: data[0].id,
-        description: data[0].description,
-        amount: data[0].amount,
-        category: data[0].category,
-        dayOfMonth: data[0].day_of_month
-      }]);
-    }
+    if (error) return alert("Error al guardar presupuesto: " + error.message);
+    if (data && data[0]) fetchAllData();
+  };
+
+  const addFixedExpense = async (description: string, amount: number, category: string, dayOfMonth: number) => {
+    const { data, error } = await supabase.from('fixed_expenses').insert([{
+      description, amount, category, day_of_month: dayOfMonth, user_id: session.user.id
+    }]).select();
+    if (error) return alert("Error al guardar gasto fijo: " + error.message);
+    if (data && data[0]) fetchAllData();
   };
 
   const deleteFixedExpense = async (id: string) => {
     const { error } = await supabase.from('fixed_expenses').delete().eq('id', id);
-    if (!error) setFixedExpenses(prev => prev.filter(f => f.id !== id));
+    if (error) return alert("Error al eliminar gasto fijo: " + error.message);
+    setFixedExpenses(prev => prev.filter(f => f.id !== id));
   };
 
-  const toggleFixedExpensePaid = async (id: string) => {
-    const expense = fixedExpenses.find(f => f.id === id);
-    if (!expense) return;
-
-    const currentlyPaid = isPaidThisMonth(expense.lastPaidDate);
-    if (!currentlyPaid) {
-      const newTrans = {
-        description: `Pago Fijo: ${expense.description}`,
-        amount: expense.amount,
-        type: TransactionType.EXPENSE,
-        category: expense.category,
-        date: new Date().toISOString(),
-        user_id: session.user.id
-      };
-      const { data: tData } = await supabase.from('transactions').insert([newTrans]).select();
-      const { data: fData } = await supabase.from('fixed_expenses').update({ 
-        last_paid_date: new Date().toISOString(), 
-        last_transaction_id: tData?.[0].id 
-      }).eq('id', id).select();
-      
-      if (tData) setTransactions(prev => [tData[0], ...prev]);
-      if (fData) setFixedExpenses(prev => prev.map(f => f.id === id ? {
-        ...f,
-        lastPaidDate: fData[0].last_paid_date,
-        lastTransactionId: fData[0].last_transaction_id
-      } : f));
-    } else {
-      if (expense.lastTransactionId) await supabase.from('transactions').delete().eq('id', expense.lastTransactionId);
-      const { data: fData } = await supabase.from('fixed_expenses').update({ 
-        last_paid_date: null, 
-        last_transaction_id: null 
-      }).eq('id', id).select();
-      
-      setTransactions(prev => prev.filter(t => t.id !== expense.lastTransactionId));
-      if (fData) setFixedExpenses(prev => prev.map(f => f.id === id ? {
-        ...f,
-        lastPaidDate: undefined,
-        lastTransactionId: undefined
-      } : f));
-    }
-  };
-
-  const addDebt = async (name: string, totalAmount: number, interestRate: number, minPayment: number, dayOfMonth: number) => {
+  const addDebt = async (name: string, amount: number, rate: number, minPayment: number, dayOfMonth: number) => {
     const { data, error } = await supabase.from('debts').insert([{
-      name, 
-      total_amount: totalAmount, 
-      current_balance: totalAmount, 
-      interest_rate: interestRate, 
-      min_payment: minPayment > 0 ? minPayment : totalAmount * 0.03, 
-      day_of_month: dayOfMonth, 
-      user_id: session.user.id
+      name, total_amount: amount, current_balance: amount, interest_rate: rate, min_payment: minPayment, day_of_month: dayOfMonth, user_id: session.user.id
     }]).select();
-    
-    if (!error && data) {
-      setDebts(prev => [...prev, {
-        id: data[0].id,
-        name: data[0].name,
-        totalAmount: data[0].total_amount,
-        currentBalance: data[0].current_balance,
-        interestRate: data[0].interest_rate,
-        minPayment: data[0].min_payment,
-        dayOfMonth: data[0].day_of_month
-      }]);
-    }
+    if (error) return alert("Error al guardar deuda: " + error.message);
+    if (data && data[0]) fetchAllData();
   };
 
-  const deleteDebt = async (id: string) => {
-    if(window.confirm("¿Estás seguro de eliminar esta deuda?")) {
-      const { error } = await supabase.from('debts').delete().eq('id', id);
-      if (!error) setDebts(prev => prev.filter(d => d.id !== id));
-    }
-  };
-
-  const payDebt = async (id: string, amount: number) => {
-    const debt = debts.find(d => d.id === id);
-    if (!debt) return;
-    const newBalance = Math.max(0, debt.currentBalance - amount);
-    const { data, error } = await supabase.from('debts').update({ 
-      current_balance: newBalance, 
-      last_payment_date: new Date().toISOString() 
-    }).eq('id', id).select();
-    
-    if (!error && data) {
-      setDebts(prev => prev.map(d => d.id === id ? {
-        ...d,
-        currentBalance: data[0].current_balance,
-        lastPaymentDate: data[0].last_payment_date
-      } : d));
-      addTransaction(`Abono a Deuda: ${debt.name}`, amount, TransactionType.EXPENSE, 'Deudas');
-    }
-  };
-
-  const addIncomeReminder = async (description: string, day: number) => {
+  const addIncomeReminder = async (description: string, dayOfMonth: number) => {
     const { data, error } = await supabase.from('income_reminders').insert([{
-      description, 
-      day_of_month: day, 
-      user_id: session.user.id
+      description, day_of_month: dayOfMonth, user_id: session.user.id
     }]).select();
-    
-    if (!error && data) {
-      setIncomeReminders(prev => [...prev, {
-        id: data[0].id,
-        description: data[0].description,
-        dayOfMonth: data[0].day_of_month
-      }]);
-    }
+    if (error) return alert("Error al guardar recordatorio: " + error.message);
+    if (data && data[0]) fetchAllData();
   };
 
   const removeIncomeReminder = async (id: string) => {
@@ -271,35 +171,32 @@ const App: React.FC = () => {
     if (!error) setIncomeReminders(prev => prev.filter(r => r.id !== id));
   };
 
-  const saveBudget = async (newBudget: Budget) => {
-    const { data, error } = await supabase.from('budgets').upsert({
-      id: newBudget.id,
-      year: newBudget.year,
-      month: newBudget.month,
-      estimated_income: newBudget.estimatedIncome,
-      allocations: newBudget.allocations,
-      user_id: session.user.id
-    }).select();
-    
-    if (!error && data) {
-      setBudgets(prev => {
-        const filtered = prev.filter(b => b.id !== newBudget.id);
-        return [...filtered, {
-          id: data[0].id,
-          year: data[0].year,
-          month: data[0].month,
-          estimatedIncome: data[0].estimated_income,
-          allocations: data[0].allocations
-        }];
-      });
-    }
-  };
-
   const isPaidThisMonth = (lastPaidDate?: string) => {
     if (!lastPaidDate) return false;
     const paidDate = new Date(lastPaidDate);
     const now = new Date();
     return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear();
+  };
+
+  const markFixedExpenseAsPaid = async (expense: FixedExpense) => {
+    const { data, error: transError } = await supabase.from('transactions').insert([{
+      description: `Pago: ${expense.description}`,
+      amount: expense.amount,
+      type: TransactionType.EXPENSE,
+      category: expense.category,
+      date: new Date().toISOString(),
+      user_id: session.user.id
+    }]).select();
+
+    if (transError) return alert("Error al registrar pago: " + transError.message);
+
+    const { error: updateError } = await supabase.from('fixed_expenses').update({
+      last_paid_date: new Date().toISOString(),
+      last_transaction_id: data[0].id
+    }).eq('id', expense.id);
+
+    if (updateError) alert("Error actualizando gasto fijo: " + updateError.message);
+    fetchAllData();
   };
 
   const totalIncome = transactions.filter(t => t.type === TransactionType.INCOME).reduce((acc, curr) => acc + curr.amount, 0);
@@ -338,26 +235,26 @@ const App: React.FC = () => {
           </button>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <button onClick={() => setView('DASHBOARD')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'DASHBOARD' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             Resumen
-          </button>
-          <button onClick={() => setView('TRANSACTIONS')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'TRANSACTIONS' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-            Movimientos
           </button>
           <button onClick={() => setView('FIXED_EXPENSES')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'FIXED_EXPENSES' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             Gastos Fijos
           </button>
-          <button onClick={() => setView('BUDGET')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'BUDGET' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-            Presupuesto
+          <button onClick={() => setView('SHOPPING_LIST')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'SHOPPING_LIST' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+            Lista de Compras
           </button>
-          <button onClick={() => setView('DEBTS')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'DEBTS' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-            Salir de Deudas
+          <button onClick={() => setView('TRANSACTIONS')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'TRANSACTIONS' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            Movimientos
+          </button>
+          <button onClick={() => setView('BUDGET')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'BUDGET' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2" /></svg>
+            Presupuesto
           </button>
           <button onClick={() => setView('ADVISOR')} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium w-full transition-colors ${view === 'ADVISOR' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
@@ -369,19 +266,12 @@ const App: React.FC = () => {
       <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
         {view === 'DASHBOARD' && (
            <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-               <h3 className="font-bold text-slate-800 text-lg">Alertas y Recordatorios</h3>
-               <button onClick={() => setShowIncomeReminderSettings(true)} className="text-emerald-600 text-sm font-bold flex items-center gap-1 hover:underline">
-                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                 Configurar Cobros
-               </button>
-             </div>
              <Reminders fixedExpenses={fixedExpenses} debts={debts} incomeReminders={incomeReminders} onAction={(v) => setView(v as ViewState)} />
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                <SummaryCard title="Balance" amount={balance} colorClass={balance >= 0 ? "text-slate-800" : "text-rose-600"} icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-               <SummaryCard title="Fijos (Pendiente)" amount={totalPendingFixedMonthly} colorClass="text-orange-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+               <SummaryCard title="Fijos" amount={totalPendingFixedMonthly} colorClass="text-orange-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
                <SummaryCard title="Ingresos" amount={totalIncome} colorClass="text-emerald-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" /></svg>} />
-               <SummaryCard title="Gastos Var." amount={totalExpense} colorClass="text-rose-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" /></svg>} />
+               <SummaryCard title="Gastos" amount={totalExpense} colorClass="text-rose-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" /></svg>} />
              </div>
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -416,6 +306,51 @@ const App: React.FC = () => {
              </div>
            </div>
         )}
+        {view === 'FIXED_EXPENSES' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-slate-800">Gastos Fijos</h2>
+              <button onClick={() => setShowFixedExpenseForm(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all active:scale-95">+ Nuevo Gasto Fijo</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {fixedExpenses.map(expense => {
+                const paid = isPaidThisMonth(expense.lastPaidDate);
+                return (
+                  <div key={expense.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between group relative">
+                    <button 
+                      onClick={() => deleteFixedExpense(expense.id)}
+                      className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors"
+                      title="Eliminar gasto fijo"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                    <div>
+                      <div className="flex justify-between items-start mb-2 pr-8">
+                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded uppercase tracking-wider">{expense.category}</span>
+                        <span className="text-xs text-slate-400 font-medium">Día {expense.dayOfMonth}</span>
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-lg mb-1">{expense.description}</h3>
+                      <p className="text-2xl font-black text-slate-900 mb-4">${expense.amount.toLocaleString()}</p>
+                    </div>
+                    <button 
+                      onClick={() => !paid && markFixedExpenseAsPaid(expense)}
+                      disabled={paid}
+                      className={`w-full py-2 rounded-lg font-bold text-sm transition-colors ${paid ? 'bg-emerald-50 text-emerald-600 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
+                    >
+                      {paid ? '✓ Pagado este mes' : 'Marcar como Pagado'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {fixedExpenses.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
+                <p className="text-slate-400">No tienes gastos fijos registrados todavía.</p>
+              </div>
+            )}
+          </div>
+        )}
+        {view === 'SHOPPING_LIST' && <ShoppingList />}
         {view === 'TRANSACTIONS' && (
           <div className="space-y-4">
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
@@ -442,67 +377,16 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        {view === 'FIXED_EXPENSES' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h2 className="text-xl font-bold text-slate-800">Gastos Fijos</h2>
-                  <button onClick={() => setShowFixedExpenseForm(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Agregar</button>
-               </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left text-sm">
-                   <thead className="bg-slate-50 text-slate-500"><tr><th className="p-4 w-16">Estado</th><th className="p-4">Día</th><th className="p-4">Descripción</th><th className="p-4 text-right">Monto</th><th className="p-4 text-center">Acciones</th></tr></thead>
-                   <tbody className="divide-y divide-slate-100">
-                     {fixedExpenses.sort((a,b) => a.dayOfMonth - b.dayOfMonth).map(f => {
-                       const isPaid = isPaidThisMonth(f.lastPaidDate);
-                       return (
-                        <tr key={f.id} className={`${isPaid ? 'bg-slate-50 opacity-50' : ''}`}>
-                          <td className="p-4"><button onClick={() => toggleFixedExpensePaid(f.id)} className={`w-6 h-6 rounded border flex items-center justify-center ${isPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{isPaid && <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}</button></td>
-                          <td className="p-4">Día {f.dayOfMonth}</td>
-                          <td className="p-4 font-medium">{f.description}</td>
-                          <td className="p-4 text-right font-bold">${f.amount.toFixed(2)}</td>
-                          <td className="p-4 text-center"><button onClick={() => deleteFixedExpense(f.id)} className="text-slate-400 hover:text-rose-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></td>
-                        </tr>
-                       )
-                     })}
-                   </tbody>
-                 </table>
-               </div>
-            </div>
-          </div>
-        )}
         {view === 'BUDGET' && <BudgetPlanner budgets={budgets} onSave={saveBudget} />}
-        {view === 'DEBTS' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm"><h3 className="text-slate-500 text-sm">Deuda Total</h3><p className="text-3xl font-bold text-rose-600 mt-1">${debts.reduce((a,c) => a+c.currentBalance, 0).toLocaleString()}</p></div>
-               <button onClick={() => setShowDebtForm(true)} className="bg-indigo-600 p-6 rounded-xl shadow-lg text-white font-bold text-center hover:bg-indigo-700 transition-colors">Agregar Nueva Deuda</button>
-            </div>
-            <div className="space-y-4">
-              {debts.map(debt => (
-                <div key={debt.id} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                   <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-bold text-lg">{debt.name}</h4>
-                      <p className="text-2xl font-bold text-rose-600">${debt.currentBalance.toLocaleString()}</p>
-                   </div>
-                   <div className="flex gap-3 pt-4 border-t border-slate-50">
-                      <button onClick={() => { const a = prompt(`¿Cuánto abonar a ${debt.name}?`); if(a) payDebt(debt.id, parseFloat(a)); }} className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium">Abonar Capital</button>
-                      <button onClick={() => deleteDebt(debt.id)} className="px-4 text-slate-300 hover:text-rose-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         {view === 'ADVISOR' && <BiblicalAdvisor transactions={transactions} debts={debts} fixedExpenses={fixedExpenses} budgets={budgets} />}
       </main>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 pb-safe flex justify-between px-4 py-1">
-        <MobileNavItem viewName="DASHBOARD" label="Inicio" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
-        <MobileNavItem viewName="TRANSACTIONS" label="Movim." icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>} />
-        <MobileNavItem viewName="BUDGET" label="Presup." icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>} />
-        <MobileNavItem viewName="FIXED_EXPENSES" label="Fijos" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-        <MobileNavItem viewName="ADVISOR" label="Consejero" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>} />
+        <MobileNavItem viewName="DASHBOARD" label="Inicio" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3" /></svg>} />
+        <MobileNavItem viewName="FIXED_EXPENSES" label="Fijos" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10" /></svg>} />
+        <MobileNavItem viewName="SHOPPING_LIST" label="Lista" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>} />
+        <MobileNavItem viewName="TRANSACTIONS" label="Movim." icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2" /></svg>} />
+        <MobileNavItem viewName="ADVISOR" label="Consejero" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2" /></svg>} />
       </nav>
 
       {showTransactionForm && <TransactionForm onAdd={addTransaction} onClose={() => setShowTransactionForm(false)} />}

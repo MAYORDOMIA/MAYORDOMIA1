@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { EXPENSE_CATEGORIES } from '../types';
 
@@ -96,7 +97,7 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
           <div className="pt-4">
              <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-indigo-200"
+              className="w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-100"
             >
               Guardar Gasto Fijo
             </button>

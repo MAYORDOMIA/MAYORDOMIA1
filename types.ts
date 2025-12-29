@@ -1,3 +1,4 @@
+
 export enum TransactionType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE'
@@ -12,14 +13,30 @@ export interface Transaction {
   date: string;
 }
 
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  quantity: number;
+  estimatedPrice?: number;
+  store?: string;
+  url?: string;
+  checked: boolean;
+}
+
+export interface StoreConfig {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface FixedExpense {
   id: string;
   description: string;
   amount: number;
   category: string;
   dayOfMonth: number;
-  lastPaidDate?: string; // ISO Date string to track payment month
-  lastTransactionId?: string; // ID of the transaction created when marked as paid
+  lastPaidDate?: string; 
+  lastTransactionId?: string;
 }
 
 export interface Debt {
@@ -29,8 +46,8 @@ export interface Debt {
   currentBalance: number;
   interestRate: number;
   minPayment: number;
-  dayOfMonth: number; // Added for reminders
-  lastPaymentDate?: string; // Added to track if paid this month
+  dayOfMonth: number;
+  lastPaymentDate?: string;
 }
 
 export interface IncomeReminder {
@@ -41,21 +58,14 @@ export interface IncomeReminder {
 }
 
 export interface Budget {
-  id: string; // Format: "YYYY-MM"
+  id: string; 
   year: number;
   month: number;
   estimatedIncome: number;
   allocations: { [category: string]: number };
 }
 
-export interface FinancialSummary {
-  totalIncome: number;
-  totalExpense: number;
-  balance: number;
-  tithe: number; // 10% of income logic
-}
-
-export type ViewState = 'DASHBOARD' | 'TRANSACTIONS' | 'FIXED_EXPENSES' | 'DEBTS' | 'BUDGET' | 'ADVISOR';
+export type ViewState = 'DASHBOARD' | 'TRANSACTIONS' | 'FIXED_EXPENSES' | 'DEBTS' | 'BUDGET' | 'ADVISOR' | 'SHOPPING_LIST';
 
 export const EXPENSE_CATEGORIES = [
   'Diezmo/Ofrenda',
