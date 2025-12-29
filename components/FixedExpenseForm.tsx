@@ -1,22 +1,24 @@
 
 import React, { useState } from 'react';
-import { EXPENSE_CATEGORIES } from '../types';
+import { EXPENSE_CATEGORIES, PaymentMethod } from '../types';
 
 interface FixedExpenseFormProps {
-  onAdd: (description: string, amount: number, category: string, dayOfMonth: number) => void;
+  onAdd: (description: string, amount: number, category: string, dayOfMonth: number, paymentMethodId?: string) => void;
   onClose: () => void;
+  paymentMethods: PaymentMethod[];
 }
 
-export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClose }) => {
+export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClose, paymentMethods }) => {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [dayOfMonth, setDayOfMonth] = useState('1');
+  const [paymentMethodId, setPaymentMethodId] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description) return;
-    onAdd(description, parseFloat(amount), category, parseInt(dayOfMonth));
+    onAdd(description, parseFloat(amount), category, parseInt(dayOfMonth), paymentMethodId);
     onClose();
   };
 
@@ -65,22 +67,20 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
             />
           </div>
 
-          <div className="grid grid-cols-5 gap-4">
-            <div className="col-span-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">Categoría</label>
-              <div className="relative">
-                <select
-                  className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-all text-sm"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {EXPENSE_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+              <select
+                className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-all text-sm"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {EXPENSE_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">Día Pago</label>
               <input
                 type="number"
@@ -92,6 +92,20 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
                 onChange={(e) => setDayOfMonth(e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-2">Método Preferido (Opcional)</label>
+            <select
+              className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-all text-sm"
+              value={paymentMethodId}
+              onChange={(e) => setPaymentMethodId(e.target.value)}
+            >
+              <option value="">Sin método asignado</option>
+              {paymentMethods.map(pm => (
+                <option key={pm.id} value={pm.id}>{pm.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="pt-4">
