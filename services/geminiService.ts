@@ -17,22 +17,20 @@ export const getBiblicalFinancialAdvice = async (
     Ayuda al usuario a administrar con prudencia. Tono alentador y bíblico.
   `;
 
-  // Always initialize client inside the function using process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Consulta: ${userQuery}. Deuda total: ${totalDebt}. Gastos fijos: ${totalFixed}.`,
       config: {
         systemInstruction: systemInstruction,
       }
     });
-    // Property .text returns string | undefined
     return response.text || "No pude generar consejo.";
   } catch (error) {
     console.error("Error en consejero:", error);
-    return "Error al conectar con el consejero.";
+    return "Error al conectar con el consejero. Verifica tu conexión.";
   }
 };
 
@@ -45,73 +43,73 @@ export const getShoppingPriceComparison = async (
 
   const prompt = `
     Actúa como un experto en compras inteligentes. 
-    Analiza la siguiente lista de compras: [${itemsList}].
-    Busca los precios más actualizados en estas webs de supermercados: [${storesContext}].
+    Analiza esta lista de compras: [${itemsList}].
+    BUSCA precios reales y actualizados en estas webs: [${storesContext}].
     
-    Para cada producto de la lista, devuélveme:
-    1. Los 2 mejores precios encontrados (indicando el supermercado).
-    2. El precio total estimado de la compra completa si se compra lo más barato.
-    
-    Responde en formato JSON puro con esta estructura:
+    Devuelve la respuesta EXCLUSIVAMENTE en formato JSON con esta estructura:
     {
       "items": [
         {
           "name": "nombre del producto",
           "suggestions": [
-            {"store": "Supermercado A", "price": 1200.50, "url": "link al producto"},
-            {"store": "Supermercado B", "price": 1250.00, "url": "link al producto"}
+            {"store": "Tienda A", "price": 1200.50, "url": "enlace"},
+            {"store": "Tienda B", "price": 1250.00, "url": "enlace"}
           ]
         }
       ],
       "totalEstimated": 15000.00,
-      "biblicalTip": "Un versículo breve sobre la diligencia y el ahorro"
+      "biblicalTip": "Un versículo breve sobre ahorro"
     }
   `;
 
-  // Always initialize client inside the function using process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
-        tools: [{ googleSearch: {} }],
-        // responseMimeType is set to suggest format, though Search Grounding might return conversational text
-        responseMimeType: "application/json"
+        tools: [{ googleSearch: {} }]
+        // Nota: No usamos responseMimeType aquí porque googleSearch genera metadatos que rompen el JSON estricto
       }
     });
 
-    // Extract grounding sources as required by guidelines when using googleSearch
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    const text = response.text || "";
     
+    // Extractor robusto de JSON
     let data;
     try {
-      // NOTE: Guidelines caution that Search Grounding responses might not be JSON.
-      const text = response.text || "{}";
-      data = JSON.parse(text);
+      // Intentamos encontrar el bloque de JSON en la respuesta si el modelo puso texto extra
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      data = JSON.parse(jsonStr);
     } catch (e) {
-      console.warn("No se pudo parsear el JSON de búsqueda, usando respuesta por defecto.");
+      console.warn("Fallo al parsear JSON, usando estructura de emergencia.", e);
       data = { 
-        items: [], 
+        items: items.map(i => ({ name: i.name, suggestions: [{ store: "Buscando...", price: 0, url: "#" }] })), 
         totalEstimated: 0, 
-        biblicalTip: "Examina bien los precios antes de comprar (Proverbios 14:15)." 
+        biblicalTip: "La hormiga, pueblo no fuerte, prepara su comida en el verano (Prov 30:25)." 
       };
     }
     
-    // Enrich response data with search sources for UI display (mandatory guideline)
+    // Agregar fuentes de búsqueda (Requerido por guías)
     if (groundingChunks && data) {
       data.searchSources = groundingChunks
         .filter(chunk => chunk.web)
         .map(chunk => ({
-          title: chunk.web?.title || 'Fuente de información',
+          title: chunk.web?.title || 'Fuente web',
           uri: chunk.web?.uri
         }));
     }
 
     return data;
-  } catch (error) {
-    console.error("Error comparando precios:", error);
+  } catch (error: any) {
+    console.error("Error en Gemini Search:", error);
+    // Si es un error de API Key no configurada en Vercel
+    if (error.message?.includes("API_KEY")) {
+      throw new Error("API Key no configurada en el servidor.");
+    }
     throw error;
   }
 };

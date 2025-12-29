@@ -14,7 +14,7 @@ import { ShoppingList } from './components/ShoppingList';
 import { Auth } from './components/Auth';
 import { supabase } from './services/supabase';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -106,19 +106,6 @@ const App: React.FC = () => {
     setTransactions(prev => [data[0], ...prev]);
   };
 
-  const deleteTransaction = async (id: string) => {
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (!error) setTransactions(prev => prev.filter(t => t.id !== id));
-  };
-
-  const addFixedExpense = async (description: string, amount: number, category: string, dayOfMonth: number) => {
-    const { data, error } = await supabase.from('fixed_expenses').insert([{
-      description, amount, category, day_of_month: dayOfMonth, user_id: session.user.id
-    }]).select();
-    if (error) return alert("Error: " + error.message);
-    fetchAllData();
-  };
-
   const deleteFixedExpense = async (id: string) => {
     const { error } = await supabase.from('fixed_expenses').delete().eq('id', id);
     if (!error) setFixedExpenses(prev => prev.filter(f => f.id !== id));
@@ -171,16 +158,15 @@ const App: React.FC = () => {
   if (!session) return <Auth />;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
 
-  // Optimized Mobile Nav Item to prevent breakage
   const MobileNavItem = ({ viewName, icon, label }: { viewName: ViewState, icon: React.ReactNode, label: string }) => (
     <button 
       onClick={() => setView(viewName)} 
-      className={`flex flex-col items-center justify-center h-full transition-all w-1/6 active:bg-slate-50 relative ${view === viewName ? 'text-indigo-600' : 'text-slate-400'}`}
+      className={`flex flex-col items-center justify-center h-full transition-all active:bg-slate-50 relative ${view === viewName ? 'text-indigo-600' : 'text-slate-400'}`}
     >
-      <div className={`w-4 h-4 flex items-center justify-center mb-1 ${view === viewName ? 'scale-110' : 'scale-100'} transition-transform`}>
+      <div className={`w-5 h-5 flex items-center justify-center mb-1 ${view === viewName ? 'scale-110' : 'scale-100'} transition-transform`}>
         {icon}
       </div>
-      <span className="text-[7px] font-black leading-none uppercase tracking-tighter text-center px-0.5 truncate w-full">
+      <span className="text-[9px] font-bold leading-none uppercase tracking-tighter text-center truncate w-full px-0.5">
         {label}
       </span>
       {view === viewName && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-indigo-600 rounded-t-full"></div>}
@@ -222,19 +208,19 @@ const App: React.FC = () => {
                  <SummaryCard title="Ingresos" amount={totalIncome} colorClass="text-emerald-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" /></svg>} />
                  <SummaryCard title="Gastos" amount={totalExpense} colorClass="text-rose-600" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" /></svg>} />
                </div>
-               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
                   <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                      <h3 className="text-lg font-bold text-slate-800 mb-4">Recientes</h3>
                      <div className="space-y-1">
                        {transactions.slice(0, 5).map(t => (
                          <div key={t.id} className="flex items-center justify-between p-3 active:bg-slate-50 rounded-xl">
                            <div className="flex items-center gap-3 overflow-hidden">
-                              <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-black text-xs ${t.type === TransactionType.INCOME ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                              <div className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-black text-xs ${t.type === TransactionType.INCOME ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                                 {t.type === TransactionType.INCOME ? '+' : '-'}
                               </div>
                               <div className="overflow-hidden">
                                 <p className="font-bold text-slate-800 truncate text-xs">{t.description}</p>
-                                <p className="text-[9px] text-slate-400 truncate uppercase">{t.category}</p>
+                                <p className="text-[10px] text-slate-400 truncate uppercase">{t.category}</p>
                               </div>
                            </div>
                            <span className={`font-black text-xs ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'}`}>${t.amount.toLocaleString()}</span>
@@ -243,7 +229,7 @@ const App: React.FC = () => {
                      </div>
                   </div>
                   <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                     <h3 className="text-lg font-bold text-slate-800 mb-4 text-center">Distribución</h3>
+                     <h3 className="text-lg font-bold text-slate-800 mb-4 text-center">Gastos</h3>
                      <div className="h-48 w-full">
                        <ResponsiveContainer width="100%" height="100%">
                          <PieChart>
@@ -319,28 +305,30 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Floating Action Button - Clears the navigation bar */}
+      {/* Botón flotante reubicado para no tapar el nav */}
       <button 
         onClick={() => setShowTransactionForm(true)} 
-        className="md:hidden fixed bottom-24 right-6 bg-indigo-600 text-white w-12 h-12 rounded-full shadow-2xl flex items-center justify-center z-[80] active:scale-90 transition-transform border-2 border-white"
+        className="md:hidden fixed bottom-20 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] active:scale-90 transition-transform border-4 border-white"
         aria-label="Agregar"
       >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
       </button>
 
-      {/* NEW NAVIGATION: FIXED 100% WIDTH GRID FOR 6 ITEMS */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[90] pb-safe flex items-stretch h-14 shadow-[0_-2px_15px_rgba(0,0,0,0.05)]">
-        <MobileNavItem viewName="DASHBOARD" label="Inicio" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3" /></svg>} />
-        <MobileNavItem viewName="FIXED_EXPENSES" label="Fijos" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14" /></svg>} />
-        <MobileNavItem viewName="TRANSACTIONS" label="Movs" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2" /></svg>} />
-        <MobileNavItem viewName="BUDGET" label="Plan" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5" /></svg>} />
-        <MobileNavItem viewName="SHOPPING_LIST" label="Lista" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4" /></svg>} />
-        <MobileNavItem viewName="ADVISOR" label="IA" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2" /></svg>} />
+      {/* NAVEGACIÓN CORREGIDA: GRID 6 COLUMNAS FIJAS */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[90] pb-safe flex items-stretch h-16 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <div className="grid grid-cols-6 w-full h-full">
+          <MobileNavItem viewName="DASHBOARD" label="Inicio" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3" /></svg>} />
+          <MobileNavItem viewName="FIXED_EXPENSES" label="Fijos" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10" /></svg>} />
+          <MobileNavItem viewName="TRANSACTIONS" label="Movs" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2" /></svg>} />
+          <MobileNavItem viewName="BUDGET" label="Plan" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5" /></svg>} />
+          <MobileNavItem viewName="SHOPPING_LIST" label="Lista" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4" /></svg>} />
+          <MobileNavItem viewName="ADVISOR" label="IA" icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2" /></svg>} />
+        </div>
       </nav>
 
       {/* Forms & Modals */}
       {showTransactionForm && <TransactionForm onAdd={addTransaction} onClose={() => setShowTransactionForm(false)} />}
-      {showFixedExpenseForm && <FixedExpenseForm onAdd={addFixedExpense} onClose={() => setShowFixedExpenseForm(false)} />}
+      {showFixedExpenseForm && <FixedExpenseForm onAdd={() => fetchAllData()} onClose={() => setShowFixedExpenseForm(false)} />}
       {showDebtForm && <DebtForm onAdd={() => {}} onClose={() => setShowDebtForm(false)} />}
       {showIncomeReminderSettings && <IncomeReminderForm reminders={incomeReminders} onAdd={() => {}} onRemove={() => {}} onClose={() => setShowIncomeReminderSettings(false)} />}
     </div>
