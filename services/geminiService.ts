@@ -28,8 +28,10 @@ export const getBiblicalFinancialAdvice = async (
         systemInstruction: systemInstruction,
       }
     });
+    // Property .text returns string | undefined
     return response.text || "No pude generar consejo.";
   } catch (error) {
+    console.error("Error en consejero:", error);
     return "Error al conectar con el consejero.";
   }
 };
@@ -75,21 +77,35 @@ export const getShoppingPriceComparison = async (
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
+        // responseMimeType is set to suggest format, though Search Grounding might return conversational text
         responseMimeType: "application/json"
       }
     });
 
     // Extract grounding sources as required by guidelines when using googleSearch
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const data = JSON.parse(response.text || "{}");
     
-    // Enrich response data with search sources for UI display
-    if (groundingChunks) {
+    let data;
+    try {
+      // NOTE: Guidelines caution that Search Grounding responses might not be JSON.
+      const text = response.text || "{}";
+      data = JSON.parse(text);
+    } catch (e) {
+      console.warn("No se pudo parsear el JSON de búsqueda, usando respuesta por defecto.");
+      data = { 
+        items: [], 
+        totalEstimated: 0, 
+        biblicalTip: "Examina bien los precios antes de comprar (Proverbios 14:15)." 
+      };
+    }
+    
+    // Enrich response data with search sources for UI display (mandatory guideline)
+    if (groundingChunks && data) {
       data.searchSources = groundingChunks
         .filter(chunk => chunk.web)
         .map(chunk => ({
-          title: chunk.web.title,
-          uri: chunk.web.uri
+          title: chunk.web?.title || 'Fuente de información',
+          uri: chunk.web?.uri
         }));
     }
 
