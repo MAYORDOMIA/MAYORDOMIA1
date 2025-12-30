@@ -14,7 +14,6 @@ export interface PaymentMethod {
   id: string;
   name: string;
   type: PaymentMethodType;
-  user_id?: string;
 }
 
 export interface Transaction {
@@ -25,7 +24,6 @@ export interface Transaction {
   category: string;
   date: string;
   payment_method_id?: string;
-  user_id?: string;
 }
 
 export interface ShoppingListItem {
@@ -53,7 +51,6 @@ export interface FixedExpense {
   lastPaidDate?: string; 
   lastTransactionId?: string;
   payment_method_id?: string;
-  user_id?: string;
 }
 
 export interface Debt {
@@ -65,7 +62,6 @@ export interface Debt {
   minPayment: number;
   dayOfMonth: number;
   lastPaymentDate?: string;
-  user_id?: string;
 }
 
 export interface IncomeReminder {
@@ -73,7 +69,6 @@ export interface IncomeReminder {
   description: string;
   dayOfMonth: number;
   lastRegisteredDate?: string;
-  user_id?: string;
 }
 
 export interface Budget {
@@ -82,7 +77,6 @@ export interface Budget {
   month: number;
   estimatedIncome: number;
   allocations: { [category: string]: number };
-  user_id?: string;
 }
 
 export type ViewState = 'DASHBOARD' | 'TRANSACTIONS' | 'FIXED_EXPENSES' | 'DEBTS' | 'BUDGET' | 'ADVISOR' | 'SHOPPING_LIST' | 'SETTINGS';

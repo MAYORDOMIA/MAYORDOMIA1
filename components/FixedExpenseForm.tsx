@@ -25,29 +25,21 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center">
       <div className="bg-white w-full h-full md:h-auto md:max-w-md md:rounded-2xl shadow-xl overflow-hidden flex flex-col animate-fade-in-up">
-        <div className="bg-slate-800 p-4 flex justify-between items-center text-white shrink-0 safe-top">
-          <h3 className="font-semibold text-lg">Nuevo Gasto Fijo</h3>
-          <button onClick={onClose} className="p-2 text-slate-300 hover:text-white rounded-full hover:bg-slate-700 transition-colors">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-             </svg>
-          </button>
+        <div className="bg-slate-800 p-5 flex justify-between items-center text-white shrink-0">
+          <h3 className="font-black text-lg uppercase tracking-tight">Nuevo Gasto Fijo</h3>
+          <button onClick={onClose} className="text-slate-400 font-black text-xs uppercase">CERRAR</button>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 overflow-y-auto">
-          <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
-            Registra gastos recurrentes (ej. Alquiler, Luz) para recordatorios y proyecciones.
-          </p>
-          
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-2">Monto Mensual</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto Mensual</label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg font-bold">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg font-black">$</span>
               <input
                 type="number"
                 step="0.01"
                 required
-                className="w-full pl-10 pr-4 py-4 text-xl font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-4 text-xl font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -56,12 +48,12 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-2">Descripción</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Descripción</label>
             <input
               type="text"
               required
-              className="w-full px-4 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-              placeholder="Ej: Internet Fibra Óptica"
+              className="w-full px-4 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold"
+              placeholder="Ej: Internet"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -69,9 +61,9 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-2">Categoría</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categoría</label>
               <select
-                className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-all text-sm"
+                className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -81,39 +73,25 @@ export const FixedExpenseForm: React.FC<FixedExpenseFormProps> = ({ onAdd, onClo
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-2">Día Pago</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Día Pago</label>
               <input
                 type="number"
                 min="1"
                 max="31"
                 required
-                className="w-full px-3 py-4 text-center text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full px-3 py-4 text-center text-slate-800 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black"
                 value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(e.target.value)}
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-2">Método Preferido (Opcional)</label>
-            <select
-              className="w-full px-3 py-4 text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-all text-sm"
-              value={paymentMethodId}
-              onChange={(e) => setPaymentMethodId(e.target.value)}
-            >
-              <option value="">Sin método asignado</option>
-              {paymentMethods.map(pm => (
-                <option key={pm.id} value={pm.id}>{pm.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="pt-4">
              <button
               type="submit"
-              className="w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-100"
+              className="w-full bg-orange-600 text-white font-black py-4 rounded-xl transition-colors shadow-lg uppercase tracking-widest text-xs"
             >
-              Guardar Gasto Fijo
+              Guardar Gasto
             </button>
           </div>
         </form>
