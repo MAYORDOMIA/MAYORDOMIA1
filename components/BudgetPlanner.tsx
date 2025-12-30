@@ -23,14 +23,13 @@ export const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ budgets, onSave })
   useEffect(() => {
     const existingBudget = budgets.find(b => b.id === currentBudgetId);
     if (existingBudget) {
-      setEstimatedIncome(existingBudget.estimatedIncome?.toString() || '');
+      setEstimatedIncome(existingBudget.estimatedIncome.toString());
       const loadedAllocations: { [key: string]: string } = {};
-      const safeAllocations = existingBudget.allocations || {};
-      Object.entries(safeAllocations).forEach(([cat, amount]) => {
-        loadedAllocations[cat] = amount?.toString() || '0';
+      Object.entries(existingBudget.allocations).forEach(([cat, amount]) => {
+        loadedAllocations[cat] = amount.toString();
       });
       setAllocations(loadedAllocations);
-      setActiveCategories(Object.keys(safeAllocations).length > 0 ? Object.keys(safeAllocations) : [...EXPENSE_CATEGORIES]);
+      setActiveCategories(Object.keys(existingBudget.allocations).length > 0 ? Object.keys(existingBudget.allocations) : [...EXPENSE_CATEGORIES]);
     } else {
       setEstimatedIncome('');
       setAllocations({});
@@ -76,12 +75,7 @@ export const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ budgets, onSave })
     <div className="space-y-6 animate-fade-in pb-20 max-w-5xl mx-auto">
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex flex-col gap-4 mb-6">
-          <div className="flex justify-between items-start">
-            <h2 className="text-xl font-black text-slate-800">Plan Mensual</h2>
-            <div className="text-right max-w-[200px]">
-              <p className="text-[10px] font-bold text-slate-400 italic">"Los pensamientos del diligente ciertamente tienden a la abundancia." - Prov. 21:5</p>
-            </div>
-          </div>
+          <h2 className="text-xl font-black text-slate-800">Plan Mensual</h2>
           <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl">
             <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="flex-1 bg-white rounded-lg py-2 px-2 text-sm font-bold shadow-sm outline-none">
               {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
@@ -127,7 +121,7 @@ export const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ budgets, onSave })
                   />
                 </div>
               </div>
-              <button onClick={() => handleDeleteCategory(cat)} className="p-4 text-slate-300 active:text-rose-500 font-bold text-xs">X</button>
+              <button onClick={() => handleDeleteCategory(cat)} className="p-4 text-slate-300 active:text-rose-500"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
             </div>
           ))}
           
