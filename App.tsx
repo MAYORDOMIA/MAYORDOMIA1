@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewState>('DASHBOARD');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showStartupVerse, setShowStartupVerse] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -55,7 +56,6 @@ const App: React.FC = () => {
       ]);
 
       if (tRes.status === 'fulfilled' && tRes.value.data) setTransactions(tRes.value.data);
-      
       if (dRes.status === 'fulfilled' && dRes.value.data) setDebts(dRes.value.data.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -66,7 +66,6 @@ const App: React.FC = () => {
         dayOfMonth: item.day_of_month,
         lastPaymentDate: item.last_payment_date
       })));
-
       if (fRes.status === 'fulfilled' && fRes.value.data) setFixedExpenses(fRes.value.data.map((item: any) => ({
         id: item.id,
         description: item.description,
@@ -77,25 +76,20 @@ const App: React.FC = () => {
         lastTransactionId: item.last_transaction_id,
         payment_method_id: item.payment_method_id
       })));
-
       if (bRes.status === 'fulfilled' && bRes.value.data) setBudgets(bRes.value.data.map((item: any) => ({
         id: item.id,
         year: item.year,
         month: item.month,
-        estimated_income: item.estimated_income,
+        estimatedIncome: item.estimated_income,
         allocations: item.allocations
       })));
-
       if (iRes.status === 'fulfilled' && iRes.value.data) setIncomeReminders(iRes.value.data.map((item: any) => ({
         id: item.id,
         description: item.description,
         dayOfMonth: item.day_of_month,
         lastRegisteredDate: item.last_registered_date
       })));
-
-      if (pmRes.status === 'fulfilled' && pmRes.value.data) {
-        setPaymentMethods(pmRes.value.data);
-      }
+      if (pmRes.status === 'fulfilled' && pmRes.value.data) setPaymentMethods(pmRes.value.data);
     } catch (err) {
       console.error("Error crítico al cargar datos:", err);
     } finally {
@@ -119,16 +113,17 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [fetchAllData]);
 
+  useEffect(() => {
+    if (showStartupVerse) {
+      const timer = setTimeout(() => setShowStartupVerse(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showStartupVerse]);
+
   const addTransaction = async (description: string, amount: number, type: TransactionType, category: string, paymentMethodId?: string) => {
     if (!session?.user?.id) return;
     const { data, error } = await supabase.from('transactions').insert([{
-      description, 
-      amount, 
-      type, 
-      category, 
-      date: new Date().toISOString(), 
-      user_id: session.user.id, 
-      payment_method_id: paymentMethodId || null
+      description, amount, type, category, date: new Date().toISOString(), user_id: session.user.id, payment_method_id: paymentMethodId || null
     }]).select();
     if (error) return alert("Error: " + error.message);
     if (data) setTransactions(prev => [data[0], ...prev]);
@@ -137,21 +132,13 @@ const App: React.FC = () => {
   const addPaymentMethod = async (name: string, type: PaymentMethodType) => {
     if (!session?.user?.id) return;
     try {
-      const { data, error } = await supabase.from('payment_methods').insert([{
-        name, 
-        type, 
-        user_id: session.user.id
-      }]).select();
-      
+      const { data, error } = await supabase.from('payment_methods').insert([{ name, type, user_id: session.user.id }]).select();
       if (error) throw error;
-      
       if (data && data.length > 0) {
         setPaymentMethods(prev => [...prev, data[0]]);
         fetchAllData(session);
       }
-    } catch (error: any) {
-      alert("Error al guardar método de pago: " + error.message);
-    }
+    } catch (error: any) { alert("Error: " + error.message); }
   };
 
   const removePaymentMethod = async (id: string) => {
@@ -163,9 +150,7 @@ const App: React.FC = () => {
 
   const addFixedExpense = async (description: string, amount: number, category: string, dayOfMonth: number, paymentMethodId?: string) => {
     if (!session?.user?.id) return;
-    const { error } = await supabase.from('fixed_expenses').insert([{
-      description, amount, category, day_of_month: dayOfMonth, user_id: session.user.id, payment_method_id: paymentMethodId || null
-    }]);
+    const { error } = await supabase.from('fixed_expenses').insert([{ description, amount, category, day_of_month: dayOfMonth, user_id: session.user.id, payment_method_id: paymentMethodId || null }]);
     if (error) return alert("Error: " + error.message);
     fetchAllData(session);
   };
@@ -178,24 +163,14 @@ const App: React.FC = () => {
 
   const addDebt = async (name: string, amount: number, rate: number, minPayment: number, dayOfMonth: number) => {
     if (!session?.user?.id) return;
-    const { error } = await supabase.from('debts').insert([{
-      name, 
-      total_amount: amount, 
-      current_balance: amount, 
-      interest_rate: rate, 
-      min_payment: minPayment, 
-      day_of_month: dayOfMonth, 
-      user_id: session.user.id
-    }]);
+    const { error } = await supabase.from('debts').insert([{ name, total_amount: amount, current_balance: amount, interest_rate: rate, min_payment: minPayment, day_of_month: dayOfMonth, user_id: session.user.id }]);
     if (error) return alert("Error: " + error.message);
     fetchAllData(session);
   };
 
   const addIncomeReminder = async (description: string, day: number) => {
     if (!session?.user?.id) return;
-    const { error } = await supabase.from('income_reminders').insert([{
-      description, day_of_month: day, user_id: session.user.id
-    }]);
+    const { error } = await supabase.from('income_reminders').insert([{ description, day_of_month: day, user_id: session.user.id }]);
     if (error) return alert("Error: " + error.message);
     fetchAllData(session);
   };
@@ -222,51 +197,26 @@ const App: React.FC = () => {
       localStorage.removeItem('shopping_stores');
       await fetchAllData(session);
       setView('DASHBOARD');
-      alert("Todos los datos han sido borrados correctamente.");
-    } catch (err) {
-      console.error("Error al reiniciar datos:", err);
-      alert("Ocurrió un error al intentar borrar los datos.");
-    }
+      alert("Borrado exitoso.");
+    } catch (err) { alert("Error al reiniciar."); }
   };
 
   const markFixedExpenseAsPaid = async (expense: FixedExpense, paymentMethodId: string) => {
     try {
       const { data: transData, error: transError } = await supabase.from('transactions').insert([{
-        description: `Pago: ${expense.description}`,
-        amount: expense.amount,
-        type: TransactionType.EXPENSE,
-        category: expense.category,
-        date: new Date().toISOString(),
-        user_id: session.user.id,
-        payment_method_id: paymentMethodId
+        description: `Pago: ${expense.description}`, amount: expense.amount, type: TransactionType.EXPENSE, category: expense.category, date: new Date().toISOString(), user_id: session.user.id, payment_method_id: paymentMethodId
       }]).select();
-
       if (transError) throw transError;
-
-      const { error: updateError } = await supabase.from('fixed_expenses').update({
-        last_paid_date: new Date().toISOString(),
-        last_transaction_id: transData[0].id
-      }).eq('id', expense.id).eq('user_id', session.user.id);
-
+      const { error: updateError } = await supabase.from('fixed_expenses').update({ last_paid_date: new Date().toISOString(), last_transaction_id: transData[0].id }).eq('id', expense.id).eq('user_id', session.user.id);
       if (updateError) throw updateError;
-
       await fetchAllData(session);
       setExpenseToPay(null);
-    } catch (err: any) {
-      alert("Error al procesar pago: " + err.message);
-    }
+    } catch (err: any) { alert("Error: " + err.message); }
   };
 
   const saveBudget = async (budget: Budget) => {
     if (!session?.user?.id) return;
-    const { error } = await supabase.from('budgets').upsert([{
-      id: budget.id, 
-      year: budget.year, 
-      month: budget.month, 
-      estimated_income: budget.estimatedIncome, 
-      allocations: budget.allocations, 
-      user_id: session.user.id
-    }]);
+    const { error } = await supabase.from('budgets').upsert([{ id: budget.id, year: budget.year, month: budget.month, estimated_income: budget.estimatedIncome, allocations: budget.allocations, user_id: session.user.id }]);
     if (!error) fetchAllData(session);
   };
 
@@ -287,27 +237,12 @@ const App: React.FC = () => {
       const pmTransactions = transactions.filter(t => t.payment_method_id === pm.id);
       const income = pmTransactions.filter(t => t.type === TransactionType.INCOME).reduce((acc, t) => acc + t.amount, 0);
       const expense = pmTransactions.filter(t => t.type === TransactionType.EXPENSE).reduce((acc, t) => acc + t.amount, 0);
-      return {
-        ...pm,
-        balance: income - expense
-      };
+      return { ...pm, balance: income - expense };
     });
   }, [paymentMethods, transactions]);
 
   if (!session && !loading) return <Auth />;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
-
-  const MobileNavItem = ({ viewName, label }: { viewName: ViewState, label: string }) => (
-    <button 
-      onClick={() => { setView(viewName); setIsMenuOpen(false); }} 
-      className={`flex flex-col items-center justify-center h-full transition-all active:bg-slate-50 relative ${view === viewName ? 'text-indigo-600' : 'text-slate-400'}`}
-    >
-      <span className="text-[9px] font-black leading-none uppercase tracking-tighter text-center truncate w-full px-0.5">
-        {label}
-      </span>
-      {view === viewName && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-indigo-600 rounded-t-full"></div>}
-    </button>
-  );
 
   const menuItems = [
     { id: 'DASHBOARD', label: 'Resumen' },
@@ -320,6 +255,16 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans overflow-hidden">
+      {/* Startup Verse Pop-up */}
+      {showStartupVerse && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none">
+          <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-sm text-center animate-fade-in-up border border-indigo-500/30 backdrop-blur-md">
+            <p className="text-lg font-black leading-relaxed italic">"Honra a Jehová con tus bienes, y con las primicias de todos tus frutos."</p>
+            <p className="text-[10px] font-black uppercase tracking-widest mt-4 text-indigo-400">Proverbios 3:9</p>
+          </div>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <aside className="bg-white w-full md:w-64 border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen z-10">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -327,9 +272,7 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
             <h1 className="font-bold text-slate-800 text-lg tracking-tight">Mayordomía</h1>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="text-slate-400 font-bold hover:text-rose-500 transition-colors text-xs uppercase">
-             SALIR
-          </button>
+          <button onClick={() => supabase.auth.signOut()} className="text-slate-400 font-bold hover:text-rose-500 transition-colors text-xs uppercase">SALIR</button>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map(item => (
@@ -342,12 +285,8 @@ const App: React.FC = () => {
             </button>
           ))}
           <div className="pt-8 mt-8 border-t border-slate-100 space-y-1">
-            <button onClick={() => setShowPaymentMethodManager(true)} className="px-4 py-3 rounded-lg text-xs font-black w-full text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all uppercase tracking-widest text-left">
-              Billeteras
-            </button>
-            <button onClick={() => setShowResetModal(true)} className="px-4 py-3 rounded-lg text-xs font-black w-full text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-widest text-left">
-              Reiniciar
-            </button>
+            <button onClick={() => setShowPaymentMethodManager(true)} className="px-4 py-3 rounded-lg text-xs font-black w-full text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all uppercase tracking-widest text-left">Billeteras</button>
+            <button onClick={() => setShowResetModal(true)} className="px-4 py-3 rounded-lg text-xs font-black w-full text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-widest text-left">Reiniciar</button>
           </div>
         </nav>
       </aside>
@@ -357,9 +296,7 @@ const App: React.FC = () => {
         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
         <div className={`absolute top-0 left-0 bottom-0 w-[280px] bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="p-6 border-b border-slate-100 bg-indigo-600 text-white flex items-center justify-between pt-safe">
-            <div className="flex items-center gap-3">
-              <span className="font-black tracking-tight text-lg">MENÚ</span>
-            </div>
+            <span className="font-black tracking-tight text-lg">MENÚ</span>
             <button onClick={() => setIsMenuOpen(false)} className="p-2 font-black text-xl">X</button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -373,15 +310,9 @@ const App: React.FC = () => {
               </button>
             ))}
             <div className="pt-6 mt-6 border-t border-slate-100 space-y-1">
-               <button onClick={() => { setShowPaymentMethodManager(true); setIsMenuOpen(false); }} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-slate-500 hover:bg-slate-50 uppercase tracking-widest text-left">
-                Cuentas
-              </button>
-              <button onClick={() => { setShowResetModal(true); setIsMenuOpen(false); }} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-slate-400 hover:bg-rose-50 hover:text-rose-600 uppercase tracking-widest text-left">
-                Borrar Datos
-              </button>
-              <button onClick={() => supabase.auth.signOut()} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-rose-400 hover:bg-rose-50 uppercase tracking-widest text-left">
-                Cerrar Sesión
-              </button>
+               <button onClick={() => { setShowPaymentMethodManager(true); setIsMenuOpen(false); }} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-slate-500 hover:bg-slate-50 uppercase tracking-widest text-left">Cuentas</button>
+              <button onClick={() => { setShowResetModal(true); setIsMenuOpen(false); }} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-slate-400 hover:bg-rose-50 hover:text-rose-600 uppercase tracking-widest text-left">Borrar Datos</button>
+              <button onClick={() => supabase.auth.signOut()} className="px-4 py-4 rounded-2xl text-[10px] font-black w-full text-rose-400 hover:bg-rose-50 uppercase tracking-widest text-left">Cerrar Sesión</button>
             </div>
           </div>
         </div>
@@ -393,20 +324,23 @@ const App: React.FC = () => {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm">M</div>
           <span className="font-black text-slate-800 tracking-tight">Mayordomía</span>
         </div>
-        <button onClick={() => setIsMenuOpen(true)} className="p-2 text-slate-500 font-bold uppercase text-[10px] border border-slate-100 rounded-lg">
-          MENÚ
-        </button>
+        <button onClick={() => setIsMenuOpen(true)} className="p-2 text-slate-500 font-bold uppercase text-[10px] border border-slate-100 rounded-lg">MENÚ</button>
       </header>
 
-      <main className="flex-1 overflow-y-auto w-full pb-36 md:pb-8 h-screen scroll-smooth">
+      <main className="flex-1 overflow-y-auto w-full pb-20 h-screen scroll-smooth">
         <div className="p-4 md:p-8 max-w-5xl mx-auto">
           {view === 'DASHBOARD' && (
-             <div className="space-y-5 animate-fade-in">
+             <div className="space-y-6 animate-fade-in">
+               <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100/50 mb-2">
+                 <p className="text-indigo-800 text-sm font-bold italic">"No os afanéis por vuestra vida, qué habéis de comer o qué habéis de beber..."</p>
+                 <p className="text-[10px] font-black text-indigo-400 uppercase mt-1">Mateo 6:25</p>
+               </div>
+
                <div className="flex justify-between items-center mb-2">
-                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Mi Panel</h2>
+                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Mi Panel</h2>
                  <div className="flex gap-2">
-                    <button onClick={() => setShowPaymentMethodManager(true)} className="px-3 py-2 text-indigo-600 text-[10px] font-black bg-indigo-50 rounded-lg uppercase">Cuentas</button>
-                    <button onClick={() => setShowIncomeReminderSettings(true)} className="px-3 py-2 text-slate-600 text-[10px] font-black bg-slate-50 rounded-lg uppercase">Config</button>
+                    <button onClick={() => setShowPaymentMethodManager(true)} className="px-3 py-2 text-indigo-600 text-[11px] font-black bg-indigo-50 rounded-lg uppercase">Cuentas</button>
+                    <button onClick={() => setShowIncomeReminderSettings(true)} className="px-3 py-2 text-slate-600 text-[11px] font-black bg-slate-50 rounded-lg uppercase">Config</button>
                  </div>
                </div>
                
@@ -415,41 +349,41 @@ const App: React.FC = () => {
                  else if (v === 'TRANSACTIONS') setView('TRANSACTIONS');
                }} />
 
-               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                  <SummaryCard title="Balance" amount={balance} colorClass={balance >= 0 ? "text-slate-800" : "text-rose-600"} />
                  <SummaryCard title="Fijos" amount={totalPendingFixedMonthly} colorClass="text-orange-600" />
                  <SummaryCard title="Ingresos" amount={totalIncome} colorClass="text-emerald-600" />
                  <SummaryCard title="Gastos" amount={totalExpense} colorClass="text-rose-600" />
                </div>
 
-               <div className="space-y-3 mt-6">
+               <div className="space-y-4 mt-8">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cuentas y Saldos</h3>
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">Cuentas y Saldos</h3>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {paymentMethodBalances.map(pm => (
-                      <div key={pm.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black text-slate-800 truncate leading-none mb-1 uppercase tracking-tight">{pm.name}</p>
-                        <p className={`text-xs font-black leading-none ${pm.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>${pm.balance.toLocaleString()}</p>
+                      <div key={pm.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <p className="text-[11px] font-black text-slate-800 truncate leading-none mb-2 uppercase tracking-tight">{pm.name}</p>
+                        <p className={`text-sm font-black leading-none ${pm.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>${pm.balance.toLocaleString()}</p>
                       </div>
                     ))}
                   </div>
                </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-                  <div className="lg:col-span-2 bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
-                     <h3 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tighter">Recientes</h3>
-                     <div className="space-y-1">
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                  <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                     <h3 className="text-xl font-black text-slate-800 mb-5 uppercase tracking-tighter">Recientes</h3>
+                     <div className="space-y-2">
                        {transactions.slice(0, 5).map(t => (
-                         <div key={t.id} className="flex items-center justify-between p-3 active:bg-slate-50 rounded-2xl transition-colors">
+                         <div key={t.id} className="flex items-center justify-between p-4 active:bg-slate-50 rounded-2xl transition-colors">
                             <div className="overflow-hidden">
-                              <p className="font-bold text-slate-800 truncate text-xs leading-none mb-1">{t.description}</p>
-                              <p className="text-[9px] text-slate-400 truncate uppercase font-bold">{t.category}</p>
+                              <p className="font-bold text-slate-800 truncate text-sm leading-none mb-1.5">{t.description}</p>
+                              <p className="text-[10px] text-slate-400 truncate uppercase font-bold">{t.category}</p>
                             </div>
-                            <span className={`font-black text-xs ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'}`}>${t.amount.toLocaleString()}</span>
+                            <span className={`font-black text-sm ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'}`}>${t.amount.toLocaleString()}</span>
                          </div>
                        ))}
-                       {transactions.length === 0 && <p className="text-center text-slate-400 py-4 text-sm font-medium">Sin movimientos.</p>}
+                       {transactions.length === 0 && <p className="text-center text-slate-400 py-6 text-sm font-medium">Sin movimientos.</p>}
                      </div>
                   </div>
                </div>
@@ -475,13 +409,7 @@ const App: React.FC = () => {
                         <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{expense.description}</h3>
                         <p className="text-2xl font-black text-slate-900 mb-5">${expense.amount.toLocaleString()}</p>
                       </div>
-                      <button 
-                        onClick={() => !paid && setExpenseToPay(expense)} 
-                        disabled={paid} 
-                        className={`w-full py-4 rounded-2xl font-black text-xs transition-all uppercase tracking-widest ${paid ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-600 text-white shadow-xl'}`}
-                      >
-                        {paid ? 'PAGADO' : 'PAGAR'}
-                      </button>
+                      <button onClick={() => !paid && setExpenseToPay(expense)} disabled={paid} className={`w-full py-4 rounded-2xl font-black text-xs transition-all uppercase tracking-widest ${paid ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-600 text-white shadow-xl'}`}>{paid ? 'PAGADO' : 'PAGAR'}</button>
                     </div>
                   );
                 })}
@@ -526,20 +454,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Mobile FAB */}
-      <button onClick={() => setShowTransactionForm(true)} className="md:hidden fixed bottom-24 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] border-4 border-white font-black text-2xl">+</button>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[140] pb-safe flex items-stretch h-16 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <div className="grid grid-cols-5 w-full h-full">
-          <MobileNavItem viewName="DASHBOARD" label="Panel" />
-          <MobileNavItem viewName="FIXED_EXPENSES" label="Fijos" />
-          <MobileNavItem viewName="TRANSACTIONS" label="Movs" />
-          <MobileNavItem viewName="SHOPPING_LIST" label="Lista" />
-          <button onClick={() => setIsMenuOpen(true)} className="flex flex-col items-center justify-center h-full text-slate-400 active:bg-slate-50 transition-colors">
-             <span className="text-[9px] font-black uppercase tracking-tighter">Más</span>
-          </button>
-        </div>
-      </nav>
+      <button onClick={() => setShowTransactionForm(true)} className="md:hidden fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] border-4 border-white font-black text-2xl">+</button>
 
       {/* Modals */}
       {showTransactionForm && <TransactionForm onAdd={addTransaction} onClose={() => setShowTransactionForm(false)} paymentMethods={paymentMethods} />}

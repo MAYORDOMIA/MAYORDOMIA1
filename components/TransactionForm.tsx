@@ -115,7 +115,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onClose
             </div>
           </div>
           
-          <div className="pt-4">
+          <div className="pt-2 text-center">
+             <p className="text-[10px] font-bold text-slate-400 italic mb-4">"El que es fiel en lo muy poco, también en lo más es fiel." - Lucas 16:10</p>
              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-sm">
                 Confirmar Registro
               </button>
