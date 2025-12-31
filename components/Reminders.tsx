@@ -43,7 +43,7 @@ export const Reminders: React.FC<RemindersProps> = ({ fixedExpenses, debts, inco
       type: 'FIXED' as const,
       title: f.description,
       day: f.dayOfMonth,
-      amount: f.amount,
+      amount: f.amount || 0,
       isOverdue: f.dayOfMonth < currentDay,
       isUrgent: f.dayOfMonth >= currentDay && f.dayOfMonth <= currentDay + 3,
       statusLabel: 'GASTO'
@@ -53,7 +53,7 @@ export const Reminders: React.FC<RemindersProps> = ({ fixedExpenses, debts, inco
       type: 'DEBT' as const,
       title: `DEUDA: ${d.name}`,
       day: d.dayOfMonth,
-      amount: d.minPayment || (d.currentBalance * 0.05),
+      amount: d.minPayment || ((d.currentBalance || 0) * 0.05),
       isOverdue: d.dayOfMonth < currentDay,
       isUrgent: d.dayOfMonth >= currentDay && d.dayOfMonth <= currentDay + 3,
       statusLabel: 'PAGO'
@@ -69,36 +69,38 @@ export const Reminders: React.FC<RemindersProps> = ({ fixedExpenses, debts, inco
   if (alerts.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-      <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-        <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Pendientes</h3>
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+      <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Pendientes por pagar</h3>
         {activeIncomeReminders.length > 0 && (
-          <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded font-black uppercase tracking-tighter">INGRESOS</span>
+          <span className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter">INGRESOS PRÓXIMOS</span>
         )}
       </div>
-      <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+      <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
         {sortedAlerts.map(alert => (
           <div 
             key={alert.id} 
-            className={`p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer ${alert.type === 'INCOME' ? 'bg-emerald-50/30' : ''}`}
+            className={`p-6 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer ${alert.type === 'INCOME' ? 'bg-emerald-50/20' : ''}`}
             onClick={() => onAction(alert.type === 'INCOME' ? 'TRANSACTIONS' : (alert.type === 'FIXED' ? 'FIXED_EXPENSES' : 'DEBTS'))}
           >
-            <div className="flex items-center gap-3">
-              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${alert.type === 'INCOME' ? 'bg-emerald-600 text-white' : alert.isOverdue ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+            <div className="flex items-center gap-5">
+              <span className={`text-[11px] font-black px-3 py-1.5 rounded-xl ${alert.type === 'INCOME' ? 'bg-emerald-600 text-white' : alert.isOverdue ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
                 {alert.statusLabel}
               </span>
               <div>
-                <p className="text-xs font-black text-slate-800">{alert.title}</p>
-                <p className={`text-[9px] font-bold ${alert.isOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
-                  DÍA {alert.day}
+                <p className="text-base font-bold text-slate-800 leading-tight">{alert.title}</p>
+                <p className={`text-xs font-black uppercase tracking-widest mt-1.5 ${alert.isOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
+                  VENCE EL DÍA {alert.day}
                 </p>
               </div>
             </div>
             <div className="text-right">
               {alert.type !== 'INCOME' ? (
-                <p className="text-xs font-black text-slate-700">${alert.amount.toLocaleString()}</p>
+                <p className="text-lg font-black text-slate-900 tracking-tight">
+                  ${(alert.amount || 0).toLocaleString()}
+                </p>
               ) : (
-                <span className="text-[9px] font-black text-emerald-600">LISTO</span>
+                <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">PENDIENTE</span>
               )}
             </div>
           </div>

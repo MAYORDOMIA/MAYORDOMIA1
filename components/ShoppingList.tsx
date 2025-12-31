@@ -171,6 +171,26 @@ export const ShoppingList: React.FC = () => {
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">TOTAL ESTIMADO</span>
                   <span className="text-3xl font-black text-emerald-400">${results.totalEstimated.toLocaleString()}</span>
                 </div>
+
+                {/* Fix: Displaying website sources from Gemini Search grounding as required by guidelines */}
+                {results.searchSources && results.searchSources.length > 0 && (
+                  <div className="pt-6 mt-2 border-t border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Fuentes de la Web:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {results.searchSources.map((source: any, idx: number) => (
+                        <a 
+                          key={idx} 
+                          href={source.uri} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold text-[10px] rounded-lg hover:bg-indigo-100 transition-colors truncate max-w-full"
+                        >
+                          {source.title}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
